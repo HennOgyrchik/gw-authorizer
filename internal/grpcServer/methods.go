@@ -21,7 +21,7 @@ func (h *handler) CreateUser(ctx context.Context, user *pb.CreateUserRequest) (*
 	}
 }
 
-func (h *handler) Login(ctx context.Context, credentials *pb.LoginRequest) (*pb.Token, error) {
+func (h *handler) Login(ctx context.Context, credentials *pb.LoginRequest) (*pb.TokenResponse, error) {
 	token, err := h.auth.Login(ctx, credentials)
 
 	switch {
@@ -34,9 +34,13 @@ func (h *handler) Login(ctx context.Context, credentials *pb.LoginRequest) (*pb.
 	}
 }
 
-func (h *handler) VerifyToken(ctx context.Context, token *pb.Token) (*pb.VerifyTokenResponse, error) {
+func (h *handler) VerifyToken(ctx context.Context, token *pb.TokenReuest) (*pb.VerifyTokenResponse, error) {
 	ok, err := h.auth.VerifyToken(ctx, token)
-	if err != nil {
+
+	switch {
+	case errors.Is(err, InvalidCredentialsErr):
+		err = status.Errorf(codes.InvalidArgument, err.Error())
+	case err != nil:
 		err = status.Errorf(codes.Internal, "internal error")
 	}
 

@@ -54,6 +54,26 @@ func (p *PSQL) GetUserInfo(ctx context.Context, login string) (storages.UserInfo
 
 }
 
+func (p *PSQL) GetToken(ctx context.Context, userID int) (string, error) {
+	const op = "PSQL GetUserInfo"
+
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, p.timeout)
+	defer cancel()
+
+	var token string
+	err := p.pool.QueryRow(ctxWithTimeout, "select token from users where id = $1", userID).Scan(&token)
+
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return "", storages.NoRowError
+	case err != nil:
+		return "", fmt.Errorf(op, err)
+	default:
+		return token, nil
+	}
+
+}
+
 func (p *PSQL) UpdateToken(ctx context.Context, token storages.UserToken) error {
 	const op = "PSQL UpdateToken"
 

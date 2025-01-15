@@ -9,5 +9,5 @@ type App struct {
 	log       *logs.Log
 	storage   storages.Storage
 	cost      int
-	secretKey string
+	secretKey []byte
 }

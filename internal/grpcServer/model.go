@@ -12,8 +12,8 @@ var InvalidCredentialsErr = fmt.Errorf("invalid credentials")
 
 type AuthorizationServer interface {
 	CreateUser(ctx context.Context, user *pb.CreateUserRequest) (*pb.CreateUserResponse, error)
-	Login(ctx context.Context, credentials *pb.LoginRequest) (*pb.Token, error)
-	VerifyToken(ctx context.Context, token *pb.Token) (*pb.VerifyTokenResponse, error)
+	Login(ctx context.Context, credentials *pb.LoginRequest) (*pb.TokenResponse, error)
+	VerifyToken(ctx context.Context, token *pb.TokenReuest) (*pb.VerifyTokenResponse, error)
 }
 
 type Authorizer struct {

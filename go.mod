@@ -5,7 +5,7 @@ go 1.22.0
 toolchain go1.22.10
 
 require (
-	github.com/HennOgyrchik/proto-jwt-auth v0.0.2
+	github.com/HennOgyrchik/proto-jwt-auth v0.0.3
 	github.com/golang-jwt/jwt v3.2.2+incompatible
 	github.com/golang-migrate/migrate/v4 v4.18.1
 	github.com/jackc/pgconn v1.14.3

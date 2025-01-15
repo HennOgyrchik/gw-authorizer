@@ -19,14 +19,14 @@ func New(logger *logs.Log, storage storages.Storage, costEncoding int, secretKey
 		log:       logger,
 		storage:   storage,
 		cost:      costEncoding,
-		secretKey: secretKey,
+		secretKey: []byte(secretKey),
 	}
 }
 
 func (a *App) CreateUser(ctx context.Context, user *pb.CreateUserRequest) (*pb.CreateUserResponse, error) {
 	const op = "App CreateUser"
 
-	hashPassword, err := getHash(user.Password, a.cost)
+	hashPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), a.cost)
 	if err != nil {
 		a.log.Err(op, err)
 		return nil, err
@@ -34,7 +34,7 @@ func (a *App) CreateUser(ctx context.Context, user *pb.CreateUserRequest) (*pb.C
 
 	userID, err := a.storage.CreateUser(ctx, storages.NewUser{
 		Login:    user.Username,
-		Password: hashPassword,
+		Password: string(hashPassword),
 		Email:    user.Email,
 	})
 
@@ -49,7 +49,7 @@ func (a *App) CreateUser(ctx context.Context, user *pb.CreateUserRequest) (*pb.C
 
 }
 
-func (a *App) Login(ctx context.Context, credentials *pb.LoginRequest) (*pb.Token, error) {
+func (a *App) Login(ctx context.Context, credentials *pb.LoginRequest) (*pb.TokenResponse, error) {
 	const op = "App Login"
 
 	userInfo, err := a.storage.GetUserInfo(ctx, credentials.Username)
@@ -61,12 +61,12 @@ func (a *App) Login(ctx context.Context, credentials *pb.LoginRequest) (*pb.Toke
 		return nil, fmt.Errorf(op, err)
 	}
 
-	if err = compareHashAndPassword(userInfo.Password, credentials.Password); err != nil {
+	if err = bcrypt.CompareHashAndPassword([]byte(userInfo.Password), []byte(credentials.Password)); err != nil {
 		return nil, grpcServer.InvalidCredentialsErr
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"id": userInfo.ID})
-	signedToken, err := token.SignedString([]byte(a.secretKey))
+	signedToken, err := token.SignedString(a.secretKey)
 	if err != nil {
 		a.log.Err(op, err)
 		return nil, fmt.Errorf(op, err)
@@ -81,25 +81,32 @@ func (a *App) Login(ctx context.Context, credentials *pb.LoginRequest) (*pb.Toke
 		return nil, fmt.Errorf(op, err)
 	}
 
-	return &pb.Token{Value: signedToken}, nil
+	return &pb.TokenResponse{Value: signedToken}, nil
 }
 
-func (a *App) VerifyToken(ctx context.Context, token *pb.Token) (*pb.VerifyTokenResponse, error) {
+func (a *App) VerifyToken(ctx context.Context, request *pb.TokenReuest) (*pb.VerifyTokenResponse, error) {
 	const op = "App VerifyToken"
 
-	return &pb.VerifyTokenResponse{}, nil
-}
-
-func getHash(str string, cost int) (string, error) {
-	const op = "App getHash"
-	hash, err := bcrypt.GenerateFromPassword([]byte(str), cost)
+	id, err := strconv.Atoi(request.UserId)
 	if err != nil {
-		err = fmt.Errorf(op, err)
+		return nil, grpcServer.InvalidCredentialsErr
 	}
 
-	return string(hash), err
-}
+	token, err := a.storage.GetToken(ctx, id)
 
-func compareHashAndPassword(hash, password string) error {
-	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	switch {
+	case errors.Is(err, storages.NoRowError):
+		return nil, grpcServer.InvalidCredentialsErr
+	case err != nil:
+		a.log.Err(op, err)
+		return nil, fmt.Errorf(op, err)
+	}
+
+	var response pb.VerifyTokenResponse
+
+	if response.Ok = request.Token == token; !response.Ok {
+		return &response, grpcServer.InvalidCredentialsErr
+	}
+
+	return &response, nil
 }

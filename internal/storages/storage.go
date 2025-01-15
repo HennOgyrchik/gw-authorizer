@@ -11,6 +11,7 @@ var NoRowError = fmt.Errorf("no rows in result set")
 type Storage interface {
 	CreateUser(ctx context.Context, user NewUser) (int, error)
 	GetUserInfo(ctx context.Context, login string) (UserInfo, error)
+	GetToken(ctx context.Context, userID int) (string, error)
 	UpdateToken(ctx context.Context, token UserToken) error
 }
 
