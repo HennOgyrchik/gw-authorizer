@@ -21,6 +21,7 @@ func main() {
 	logger := logs.New(os.Stdout)
 
 	confPath := flag.String("c", "config.env", "path to configuration")
+	migrationPath := flag.String("m", "migrations", "path to migration DB files")
 	flag.Parse()
 
 	if err := config.LoadConfig(*confPath); err != nil {
@@ -38,7 +39,7 @@ func main() {
 
 	db := postgres.New()
 
-	if err = db.Start(ctx, dbUrl, time.Duration(cfg.Postgres.ConnTimeout)*time.Second, "internal/storages/migrations"); err != nil {
+	if err = db.Start(ctx, dbUrl, time.Duration(cfg.Postgres.ConnTimeout)*time.Second, *migrationPath); err != nil {
 		logger.Err("connection db", err)
 		return
 	}
